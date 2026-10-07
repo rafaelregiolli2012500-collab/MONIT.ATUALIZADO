@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   BarChart3, FileSpreadsheet, Download, Trash2,
-  ChevronDown, Combine, AlertTriangle, CheckCircle2, Clock3, Plus, X, Gauge, HelpCircle, TrendingUp, TrendingDown,
+  ChevronDown, Combine, AlertTriangle, CheckCircle2, Clock3, Plus, X, Gauge, HelpCircle, TrendingUp, TrendingDown, Upload,
 } from 'lucide-react';
 import { HarvesterIcon, TractorIcon, TruckIcon } from '@/components/coa/MachineIcons';
 
