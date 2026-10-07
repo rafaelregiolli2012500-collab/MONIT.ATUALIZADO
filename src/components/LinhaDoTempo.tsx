@@ -446,7 +446,7 @@ function PastePanel({
         )}
         {!has && (
           <p className="text-xs text-muted-foreground">
-            Copie a planilha original (com ou sem cabeçalho) e cole abaixo. O sistema detecta o delimitador (<code>;</code>, <code>TAB</code>, <code>,</code>) e mapeia as colunas automaticamente.
+            Copie a planilha original (com ou sem cabeçalho) e cole abaixo, ou use <strong>Importar Base</strong> para carregar um arquivo (.txt, .csv, .tsv, .xlsx). O sistema detecta o delimitador (<code>;</code>, <code>TAB</code>, <code>,</code>) e mapeia as colunas automaticamente.
           </p>
         )}
         <textarea
