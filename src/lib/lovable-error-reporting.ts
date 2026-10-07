@@ -1,3 +1,7 @@
+/**
+ * MONIT.CAMPO
+ * Autor e criador: Rafael Regiolli de Souza
+ */
 type LovableErrorOptions = {
   mechanism?: "manual" | "onerror" | "unhandledrejection" | "react_error_boundary";
   handled?: boolean;
@@ -5,7 +9,6 @@ type LovableErrorOptions = {
 };
 
 type LovableEvents = {
-  track?: (event: string, properties?: Record<string, unknown>) => string | null;
   captureException?: (
     error: unknown,
     context?: Record<string, unknown>,
