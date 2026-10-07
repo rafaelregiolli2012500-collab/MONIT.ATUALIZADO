@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   BarChart3, FileSpreadsheet, Download, Trash2,
-  ChevronDown, Combine, AlertTriangle, CheckCircle2, Clock3, Plus, X, Gauge, HelpCircle, TrendingUp, TrendingDown,
+  ChevronDown, Combine, AlertTriangle, CheckCircle2, Clock3, Plus, X, Gauge, HelpCircle, TrendingUp, TrendingDown, Upload,
 } from 'lucide-react';
 import { HarvesterIcon, TractorIcon, TruckIcon } from '@/components/coa/MachineIcons';
 
@@ -371,11 +371,45 @@ function PastePanel({
   onClear: () => void;
 }) {
   const has = res && res.rows.length > 0;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /** Importa base de arquivo: .txt/.csv/.tsv (texto) ou .xlsx (1ª planilha → TSV). */
+  const handleImportFile = async (file: File) => {
+    try {
+      if (/\.(xlsx|xls)$/i.test(file.name)) {
+        const wb = XLSX.read(await file.arrayBuffer());
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        if (!ws) throw new Error('Planilha vazia');
+        onChange(XLSX.utils.sheet_to_csv(ws, { FS: '\t' }));
+      } else {
+        onChange(await file.text());
+      }
+      toast({ title: `Base de ${title} importada`, description: file.name });
+    } catch {
+      toast({ variant: 'destructive', title: 'Falha ao importar arquivo', description: 'Verifique o formato do arquivo e tente novamente.' });
+    }
+  };
+
   return (
     <Card className="overflow-hidden">
       <div className={`h-1 ${accentBar}`} />
       <CardHeader className="py-3 flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2 text-sm">{iconEl} {title}</CardTitle>
+        <div className="flex items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.csv,.tsv,.xlsx,.xls"
+            className="hidden"
+            onChange={e => {
+              const f = e.target.files?.[0];
+              if (f) handleImportFile(f);
+              e.target.value = '';
+            }}
+          />
+          <Button type="button" variant="outline" size="sm" className="h-7 gap-1 text-xs" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-3 w-3" /> Importar Base
+          </Button>
         {value && (
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -397,6 +431,7 @@ function PastePanel({
             </AlertDialogContent>
           </AlertDialog>
         )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {has && res && (
@@ -411,7 +446,7 @@ function PastePanel({
         )}
         {!has && (
           <p className="text-xs text-muted-foreground">
-            Copie a planilha original (com ou sem cabeçalho) e cole abaixo. O sistema detecta o delimitador (<code>;</code>, <code>TAB</code>, <code>,</code>) e mapeia as colunas automaticamente.
+            Copie a planilha original (com ou sem cabeçalho) e cole abaixo, ou use <strong>Importar Base</strong> para carregar um arquivo (.txt, .csv, .tsv, .xlsx). O sistema detecta o delimitador (<code>;</code>, <code>TAB</code>, <code>,</code>) e mapeia as colunas automaticamente.
           </p>
         )}
         <textarea
