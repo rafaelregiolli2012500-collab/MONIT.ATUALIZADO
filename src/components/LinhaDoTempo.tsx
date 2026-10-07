@@ -431,6 +431,7 @@ function PastePanel({
             </AlertDialogContent>
           </AlertDialog>
         )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {has && res && (
