@@ -1,5 +1,7 @@
 # Roadmap — MONIT.CAMPO
 
+- [ ] Separar as linhas de paradas de colhedoras e tratores por cor e frente somente na comparação somada, preservando os gráficos individuais.
+
 - [x] Remover a Central antiga (telemetria, heartbeat, eventos, health legado)
 - [x] Base mínima: instalações, acessos e última localização aproximada
 - [x] API mínima: autorização, instalações, acessos, localização e /health
