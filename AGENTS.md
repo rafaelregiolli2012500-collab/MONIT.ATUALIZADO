@@ -11,3 +11,4 @@
 
 - Keep Linha do Tempo filtering, row totals, period totals, and persistent selection derived from the existing clipped segment set so every view shares one calculation source.
 - Derive combined-base comparisons from the same clipping pipeline before equipment-category selection, and use the existing summary for front totals; this keeps time and filter calculations consistent.
+- Assemble front comparison series in the browser-safe timelineFrontComparison helper from existing official summaries; this separates equipment stop lines without duplicating clipping or duration calculations.

@@ -79,6 +79,8 @@
 :root {
   --ldt-production: #16a34a;
   --ldt-stop: #dc2626;
+  --ldt-stop-harvester: var(--ldt-stop);
+  --ldt-stop-tractor: hsl(var(--info));
   --ldt-chart-grid: hsl(var(--border));
   --ldt-chart-text: hsl(var(--foreground));
   --ldt-chart-surface: hsl(var(--card));
