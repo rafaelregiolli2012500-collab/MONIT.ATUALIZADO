@@ -23,7 +23,7 @@ import { HarvesterIcon, TractorIcon, TruckIcon } from '@/components/coa/MachineI
 
 import * as XLSX from 'xlsx';
 import type { MaintenanceRecord } from '@/types/maintenance';
-import { buildFrontComparison, shouldSplitStopLines } from '@/lib/timelineFrontComparison';
+import { buildFrontComparison, shouldSplitStopLines, frontKey } from '@/lib/timelineFrontComparison';
 import { toast } from '@/hooks/use-toast';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -715,7 +715,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
   const summarizeFrentes = useCallback((segs: ClippedSegment[]) => {
     const fronts = new Map<string, ClippedSegment[]>();
     for (const segment of segs) {
-      const key = segment.frente.trim().replace(/^frente\s*/i, '') || 'SEM';
+      const key = frontKey(segment.frente);
       const items = fronts.get(key) ?? [];
       items.push(segment);
       fronts.set(key, items);
@@ -736,7 +736,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
     if (filters.categoria !== 'trator') return [];
     const map = new Map<string, { frotas: Set<string>; manut: number; prod: number; desl: number; espera: number }>();
     for (const s of visibleSegments) {
-      const key = s.frente.trim().replace(/^frente\s*/i, '') || 'SEM';
+      const key = frontKey(s.frente);
       const cur = map.get(key) ?? { frotas: new Set<string>(), manut: 0, prod: 0, desl: 0, espera: 0 };
       const dur = (s.clipEnd.getTime() - s.clipStart.getTime()) / 60000;
       cur.frotas.add(s.equipamento);

@@ -39,3 +39,9 @@ describe('comparação de paradas por frente', () => {
     expect(data.parada).toBe(0.75);
   });
 });
+import { frontKey } from './timelineFrontComparison';
+describe('chave da frente', () => {
+  it('une variações da mesma frente sem repetir', () => {
+    expect(['22', 'F22', 'F-022', 'FRENTE 22', 'Frente 022', 'GRUPO FRENTE 22'].map(frontKey)).toEqual(['22','22','22','22','22','22']);
+  });
+});
