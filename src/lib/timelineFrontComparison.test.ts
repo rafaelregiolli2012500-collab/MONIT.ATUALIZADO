@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFrontComparison, shouldSplitStopLines } from './timelineFrontComparison';
+import { buildFrontComparison, shouldSplitStopLines, frontKey } from './timelineFrontComparison';
 
 describe('comparação de paradas por frente', () => {
   it('separa as paradas de colhedoras e tratores na mesma frente sem mudar a produção somada', () => {
@@ -39,7 +39,6 @@ describe('comparação de paradas por frente', () => {
     expect(data.parada).toBe(0.75);
   });
 });
-import { frontKey } from './timelineFrontComparison';
 describe('chave da frente', () => {
   it('une variações da mesma frente sem repetir', () => {
     expect(['22', 'F22', 'F-022', 'FRENTE 22', 'Frente 022', 'GRUPO FRENTE 22'].map(frontKey)).toEqual(['22','22','22','22','22','22']);
