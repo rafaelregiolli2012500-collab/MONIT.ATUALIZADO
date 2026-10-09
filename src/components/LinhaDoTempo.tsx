@@ -566,6 +566,8 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
     }
   }, [availableSelectors, filters.categoria]);
   const isCombined = filters.categoria === 'combinado';
+  /** ADD AO HISTÓRICO é exclusivo da visualização Colhedoras (não aparece em Tratores, Canavieiros nem na consolidada). */
+  const showAddToHistory = filters.categoria === 'colhedora';
   const segments = useMemo(() => buildSegments(rows), [rows]);
 
   // Rows/segments filtered pelo Tipo de Equipamento (para popular listas de filtros)
@@ -1425,7 +1427,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
                                       <Info k="Horímetro Inicial" v={s.horimetroIni.toFixed(1)} />
                                       <Info k="Horímetro Final" v={s.horimetroFim.toFixed(1)} />
                                       <Info k="Velocidade Média" v={`${s.velMedia.toFixed(1)} km/h`} />
-                                      {s.category === 'parada' && onAddToHistory && (
+                                      {s.category === 'parada' && onAddToHistory && showAddToHistory && (
                                         <Button type="button" size="sm" className="mt-2 w-full gap-2"
                                           disabled={addedEventIds.has(s.id.split('@')[0])}
                                           onClick={event => { event.stopPropagation(); handleAddToHistory(s); }}>
@@ -1487,7 +1489,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
                         <Clock3 className="size-4" />
                         <span>Evento selecionado</span>
                       </div>
-                      {selectedSegment.category === 'parada' && onAddToHistory && (() => {
+                      {selectedSegment.category === 'parada' && onAddToHistory && showAddToHistory && (() => {
                         const added = addedEventIds.has(selectedSegment.id.split('@')[0]);
                         return (
                           <Button
