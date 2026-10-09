@@ -23,6 +23,7 @@ import { HarvesterIcon, TractorIcon, TruckIcon } from '@/components/coa/MachineI
 
 import * as XLSX from 'xlsx';
 import type { MaintenanceRecord } from '@/types/maintenance';
+import { buildFrontComparison, shouldSplitStopLines } from '@/lib/timelineFrontComparison';
 import { toast } from '@/hooks/use-toast';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -779,9 +780,12 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
     (comparisonBase === 'auto' || s.categoria === comparisonBase) &&
     (categoryView === 'todos' || s.category === categoryView)
   ), [clippedSegments, comparisonBase, categoryView]);
-  const frontComparison = useMemo(() => summarizeFrentes(comparisonSegments).map(s => ({
-    frente: `F${s.frente}`, producao: s.totals.producao / 60, parada: s.totals.parada / 60,
-  })), [summarizeFrentes, comparisonSegments]);
+  const splitStopLines = shouldSplitStopLines(comparisonBase, Boolean(resColh?.rows.length), Boolean(resTrat?.rows.length));
+  const frontComparison = useMemo(() => buildFrontComparison(
+    summarizeFrentes(comparisonSegments),
+    splitStopLines ? summarizeFrentes(comparisonSegments.filter(s => s.categoria === 'colhedora')) : [],
+    splitStopLines ? summarizeFrentes(comparisonSegments.filter(s => s.categoria === 'trator')) : [],
+  ), [summarizeFrentes, comparisonSegments, splitStopLines]);
   const selectedSegment = useMemo(
     () => visibleSegments.find(s => s.id === selectedSegmentId) ?? null,
     [visibleSegments, selectedSegmentId],
@@ -1587,7 +1591,14 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
                       <RTooltip contentStyle={{ background: 'var(--ldt-chart-surface)', borderColor: 'var(--ldt-chart-grid)', color: 'var(--ldt-chart-text)' }} formatter={(value: number) => fmtDur(Number(value) * 60)} />
                       <Legend />
                       <Line type="linear" dataKey="producao" name="Produção" stroke="var(--ldt-production)" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
-                      <Line type="linear" dataKey="parada" name="Paradas" stroke="var(--ldt-stop)" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+                      {splitStopLines ? (
+                        <>
+                          <Line type="linear" dataKey="paradaColhedoras" name="Paradas — Colhedoras" stroke="var(--ldt-stop-harvester)" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+                          <Line type="linear" dataKey="paradaTratores" name="Paradas — Tratores" stroke="var(--ldt-stop-tractor)" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+                        </>
+                      ) : (
+                        <Line type="linear" dataKey="parada" name="Paradas" stroke="var(--ldt-stop)" strokeWidth={2} dot={{ r: 4 }} isAnimationActive={false} />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
