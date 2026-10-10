@@ -99,7 +99,6 @@ export function maintenanceWindows(segs: AnalysisSegment[], rangeStart: number, 
       const last = windows[windows.length - 1];
       if (last && last.status === status && last.end === a) {
         last.end = b; last.durMin = (b - last.start) / 60000;
-        (last as FrontWindow & { _ids?: Set<string> })._ids?.forEach(() => {});
         const ids = (last as FrontWindow & { _ids: Set<string> })._ids;
         maintIds.forEach(id => ids.add(id)); last.ocorrencias = ids.size;
       } else {
