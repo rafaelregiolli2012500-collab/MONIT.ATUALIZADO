@@ -1,6 +1,7 @@
 # Roadmap — MONIT.CAMPO
 
 - [x] Separar as linhas de paradas de colhedoras e tratores por cor e frente somente na comparação somada, preservando os gráficos individuais — 4 testes aprovados e build OK; conferência visual do gráfico bloqueada pela autorização da instalação.
+- [x] Comparativo por frente (Colhedoras × Transbordo) no cronograma combinado; Bases somadas com resumo, paradas por frente, períodos sem manutenção e rankings — 10 testes OK; validação visual bloqueada pela autorização.
 
 - [x] Remover a Central antiga (telemetria, heartbeat, eventos, health legado)
 - [x] Base mínima: instalações, acessos e última localização aproximada
