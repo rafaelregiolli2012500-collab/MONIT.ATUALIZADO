@@ -154,7 +154,7 @@ export function ConsolidatedAnalysis({
                 <CartesianGrid stroke="var(--ldt-chart-grid)" strokeDasharray="3 3" />
                 <XAxis dataKey="frente" tick={{ fill: 'var(--ldt-chart-text)', fontSize: 11 }} />
                 <YAxis allowDecimals={false} width={36} tick={{ fill: 'var(--ldt-chart-text)', fontSize: 11 }} />
-                <RTooltip contentStyle={{ background: 'var(--ldt-chart-surface)', borderColor: 'var(--ldt-chart-grid)', color: 'var(--ldt-chart-text)' }} formatter={(v: number | null) => (v === null ? 'sem registros' : `${v} parada(s)`)} />
+                <RTooltip contentStyle={{ background: 'var(--ldt-chart-surface)', borderColor: 'var(--ldt-chart-grid)', color: 'var(--ldt-chart-text)' }} formatter={(v: unknown) => (v == null ? 'sem registros' : `${v} parada(s)`)} />
                 <Legend />
                 <Line type="linear" dataKey="colhedora" name="Paradas — Colhedoras" stroke="var(--ldt-stop-harvester)" strokeWidth={2} dot={{ r: 4 }} connectNulls={false} isAnimationActive={false}>
                   <LabelList dataKey="colhedora" position="top" fontSize={10} fill="var(--ldt-chart-text)" />
