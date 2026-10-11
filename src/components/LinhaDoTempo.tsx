@@ -25,7 +25,7 @@ import * as XLSX from 'xlsx';
 import type { MaintenanceRecord } from '@/types/maintenance';
 import { buildFrontComparison, shouldSplitStopLines, frontKey } from '@/lib/timelineFrontComparison';
 import { toast } from '@/hooks/use-toast';
-import { stopCountsByFront, maintenanceWindows, maintenanceRanking } from '@/lib/timelineFrontAnalysis';
+import { stopCountsByFront, maintenanceWindows, maintenanceRanking, unionMinutes } from '@/lib/timelineFrontAnalysis';
 import { FrontTimesComparison, ConsolidatedAnalysis, type FrontBreakdown, type BaseTimes } from '@/components/timeline/FrontAnalysisPanels';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
@@ -812,7 +812,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
   const consolidated = useMemo(() => {
     if (comparisonBase !== 'auto') return null;
     const cs = analysisSegs.filter(s => s.categoria !== 'canavieiro');
-    const periodMin = (analysisRange.end - analysisRange.start) / 60000;
+    const periodMin = unionMinutes(cs.map(s => [s.clipStart.getTime(), s.clipEnd.getTime()] as [number, number]));
     return {
       stopCounts: stopCountsByFront(cs, ['colhedora', 'trator']),
       windows: maintenanceWindows(cs, analysisRange.start, analysisRange.end),
