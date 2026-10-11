@@ -25,6 +25,8 @@ import * as XLSX from 'xlsx';
 import type { MaintenanceRecord } from '@/types/maintenance';
 import { buildFrontComparison, shouldSplitStopLines, frontKey } from '@/lib/timelineFrontComparison';
 import { toast } from '@/hooks/use-toast';
+import { stopCountsByFront, maintenanceWindows, maintenanceRanking } from '@/lib/timelineFrontAnalysis';
+import { FrontTimesComparison, ConsolidatedAnalysis, type FrontBreakdown, type BaseTimes } from '@/components/timeline/FrontAnalysisPanels';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   Legend, ResponsiveContainer, Cell, LabelList, LineChart,
@@ -786,6 +788,38 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
     splitStopLines ? summarizeFrentes(comparisonSegments.filter(s => s.categoria === 'colhedora')) : [],
     splitStopLines ? summarizeFrentes(comparisonSegments.filter(s => s.categoria === 'trator')) : [],
   ), [summarizeFrentes, comparisonSegments, splitStopLines]);
+  /* ===== Camada de análise por frente (somente leitura, sobre o mesmo recorte oficial) ===== */
+  const analysisSegs = useMemo(() => clippedSegments.map(s => ({ ...s, manutencao: s.category === 'parada' && isManutencao(s) })), [clippedSegments]);
+  const frontBreakdown = useMemo<FrontBreakdown[]>(() => {
+    const toTimes = (f: ReturnType<typeof summarizeFrentes>[number], segs: ClippedSegment[]): BaseTimes => {
+      const t = f.totals as Record<string, number>;
+      const ids = new Set(segs.filter(s => frontKey(s.frente) === f.frente && s.category === 'parada').map(s => s.id.split('@')[0]));
+      return { total: f.totalMin, parada: t.parada || 0, producao: t.producao || 0, manobra: t.manobra || 0, deslocamento: t.deslocamento || 0, naoClassificado: t.outros || 0, disp: f.disp, paradas: ids.size };
+    };
+    const colhSegs = clippedSegments.filter(s => s.categoria === 'colhedora');
+    const tratSegs = clippedSegments.filter(s => s.categoria === 'trator');
+    const c = new Map(summarizeFrentes(colhSegs).map(f => [f.frente, toTimes(f, colhSegs)]));
+    const t = new Map(summarizeFrentes(tratSegs).map(f => [f.frente, toTimes(f, tratSegs)]));
+    return [...new Set([...c.keys(), ...t.keys()])].sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }))
+      .map(frente => ({ frente, colhedora: c.get(frente) ?? null, trator: t.get(frente) ?? null }));
+  }, [clippedSegments, summarizeFrentes]);
+  const analysisRange = useMemo(() => {
+    if (!dayStart || !dayEnd) return { start: 0, end: 0 };
+    return isHourMode
+      ? { start: dayStart.getTime() + viewStartOff * 3600000, end: dayStart.getTime() + viewEndOff * 3600000 }
+      : { start: dayStart.getTime(), end: dayEnd.getTime() };
+  }, [dayStart, dayEnd, isHourMode, viewStartOff, viewEndOff]);
+  const consolidated = useMemo(() => {
+    if (comparisonBase !== 'auto') return null;
+    const cs = analysisSegs.filter(s => s.categoria !== 'canavieiro');
+    const periodMin = (analysisRange.end - analysisRange.start) / 60000;
+    return {
+      stopCounts: stopCountsByFront(cs, ['colhedora', 'trator']),
+      windows: maintenanceWindows(cs, analysisRange.start, analysisRange.end),
+      rankingColh: maintenanceRanking(cs, 'colhedora', periodMin),
+      rankingTrat: maintenanceRanking(cs, 'trator', periodMin),
+    };
+  }, [comparisonBase, analysisSegs, analysisRange]);
   const selectedSegment = useMemo(
     () => visibleSegments.find(s => s.id === selectedSegmentId) ?? null,
     [visibleSegments, selectedSegmentId],
@@ -1280,6 +1314,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
                         ))}
                       </div>
                       <p className="text-[10px] text-muted-foreground">Efetividade = tempo efetivo (produção + deslocamento + manobra) ÷ tempo total, com os filtros ativos.</p>
+                      <FrontTimesComparison data={frontBreakdown} />
                     </>
                   )}
                 </section>
@@ -1604,6 +1639,19 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
                 </div>
               )}
             </section>
+            {consolidated && (
+              <ConsolidatedAnalysis
+                missing={[!resColh?.rows.length && 'Colhedoras', !resTrat?.rows.length && 'Tratores / Transbordo'].filter((v): v is string => !!v)}
+                summary={frontBreakdown}
+                stopCounts={consolidated.stopCounts}
+                windows={consolidated.windows}
+                rangeStart={analysisRange.start}
+                rangeEnd={analysisRange.end}
+                rankingColh={consolidated.rankingColh}
+                rankingTrat={consolidated.rankingTrat}
+                periodLabel={`${activeDate}${isHourMode ? ` · ${hourStart}–${hourEnd}` : ''}`}
+              />
+            )}
             {isCombined && (
               <Card>
                 <CardHeader className="py-3"><CardTitle className="text-sm">Efetividade das Frentes — Colhedoras + Tratores</CardTitle></CardHeader>
