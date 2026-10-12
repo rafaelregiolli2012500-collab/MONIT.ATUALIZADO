@@ -13,3 +13,4 @@
 - Derive combined-base comparisons from the same clipping pipeline before equipment-category selection, and use the existing summary for front totals; this keeps time and filter calculations consistent.
 - Assemble front comparison series in the browser-safe timelineFrontComparison helper from existing official summaries; this separates equipment stop lines without duplicating clipping or duration calculations.
 - Front-level analyses (stop counts, no-maintenance windows, maintenance rankings) live in the pure helper src/lib/timelineFrontAnalysis.ts, fed by the official clipped segments; why: one calculation source, no base mutation, testable.
+- Truck telemetry uses the existing canavieiros raw base and one worker parser/shared observation-pair helper in truckTimeline; why: point telemetry needs gap-aware intervals and original counts that aggregated front segments cannot recover, while other equipment pipelines remain unchanged.
