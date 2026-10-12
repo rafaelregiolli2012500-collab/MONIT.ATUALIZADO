@@ -27,6 +27,8 @@ import { buildFrontComparison, shouldSplitStopLines, frontKey } from '@/lib/time
 import { toast } from '@/hooks/use-toast';
 import { stopCountsByFront, maintenanceWindows, maintenanceRanking, unionMinutes } from '@/lib/timelineFrontAnalysis';
 import { FrontTimesComparison, ConsolidatedAnalysis, type FrontBreakdown, type BaseTimes } from '@/components/timeline/FrontAnalysisPanels';
+import { TruckLogisticsDashboard } from '@/components/timeline/TruckLogisticsDashboard';
+import { truckNorm, type TruckImport } from '@/lib/truckTimeline';
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip,
   Legend, ResponsiveContainer, Cell, LabelList, LineChart,
@@ -503,6 +505,10 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
   const [resTrat, setResTrat] = useState<ParseResult | null>(null);
   const [rawCana, setRawCana] = useState<string>('');
   const [resCana, setResCana] = useState<ParseResult | null>(null);
+  const [truckImport, setTruckImport] = useState<TruckImport | null>(null);
+  const [truckProcessing, setTruckProcessing] = useState(false);
+  const [truckError, setTruckError] = useState('');
+  const [graphicsMode, setGraphicsMode] = useState<'timeline' | 'trucks'>('timeline');
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [comparisonBase, setComparisonBase] = useState<'auto' | 'colhedora' | 'trator'>('auto');
   const [categoryView, setCategoryView] = useState<Category | 'todos'>('todos');
@@ -525,7 +531,7 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
       if (c) { setRawColh(c); setResColh(parseSmart(c, 'colhedora')); }
       if (t) { setRawTrat(t); setResTrat(parseSmart(t, 'trator')); }
       const cn = localStorage.getItem(LDT_CANA_KEY);
-      if (cn) { setRawCana(cn); setResCana(parseSmart(cn, 'canavieiro')); }
+      if (cn) setRawCana(cn);
       if (f) { const p = JSON.parse(f); if (p.categoria === 'todos' || !p.categoria) p.categoria = 'colhedora'; setFilters({ ...EMPTY_FILTERS, ...p }); }
     } catch { /* ignore */ }
   }, []);
@@ -548,9 +554,30 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
 
   const handlePasteCana = (v: string) => {
     setRawCana(v);
-    if (v) { setResCana(parseSmart(v, 'canavieiro')); if (typeof window !== 'undefined') localStorage.setItem(LDT_CANA_KEY, v); }
-    else { setResCana(null); if (typeof window !== 'undefined') localStorage.removeItem(LDT_CANA_KEY); }
+    try {
+      if (v) localStorage.setItem(LDT_CANA_KEY, v);
+      else localStorage.removeItem(LDT_CANA_KEY);
+    } catch { toast({ variant: 'destructive', title: 'Base carregada apenas nesta sessão', description: 'Sem espaço para guardar a base neste dispositivo.' }); }
   };
+
+  useEffect(() => {
+    setTruckImport(null); setResCana(null); setTruckError('');
+    if (!rawCana.trim()) { setTruckProcessing(false); return; }
+    const header = truckNorm(rawCana.split(/\r?\n/).find(line => line.trim()) ?? '');
+    if (!header.includes('ESTADO OPERACIONAL') && !header.includes('GRUPO OPERACAO') && !header.includes('MOTOR LIGADO')) {
+      setTruckProcessing(false); setResCana(parseSmart(rawCana, 'canavieiro')); return;
+    }
+    setTruckProcessing(true);
+    const worker = new Worker(new URL('../workers/truckImport.worker.ts', import.meta.url), { type: 'module' });
+    worker.onmessage = (event: MessageEvent<{ result?: TruckImport; error?: string }>) => {
+      setTruckProcessing(false);
+      if (event.data.result) { setTruckImport(event.data.result); setResCana(event.data.result); }
+      else setTruckError(event.data.error ?? 'Falha ao interpretar a base de caminhões.');
+    };
+    worker.onerror = () => { setTruckProcessing(false); setTruckError('Falha ao processar a base de caminhões. Importe novamente.'); };
+    worker.postMessage({ text: rawCana });
+    return () => worker.terminate();
+  }, [rawCana]);
 
   const rows = useMemo(() => [...(resColh?.rows ?? []), ...(resTrat?.rows ?? []), ...(resCana?.rows ?? [])], [resColh, resTrat, resCana]);
   /** Seletores dinâmicos conforme as bases realmente carregadas. */
@@ -1064,6 +1091,8 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
             res={resCana}
             onClear={() => handlePasteCana('')}
           />
+          {truckProcessing && <p role="status" className="text-xs text-info">Processando a base de caminhões…</p>}
+          {truckError && <p role="alert" className="text-xs text-danger">{truckError}</p>}
         </div>
       </TabsContent>
 
@@ -1593,7 +1622,11 @@ export function LinhaDoTempo({ records = [], onAddToHistory }: {
 
       {/* GRÁFICO */}
       <TabsContent value="grafico" className="space-y-3">
-        {rows.length === 0 ? (
+        <div className="flex flex-wrap gap-2 border-b border-border pb-3" role="group" aria-label="Análise dos gráficos">
+          <Button size="sm" variant={graphicsMode === 'timeline' ? 'default' : 'outline'} aria-pressed={graphicsMode === 'timeline'} onClick={() => setGraphicsMode('timeline')}><BarChart3 className="mr-2 size-4" />Frentes e equipamentos</Button>
+          <Button size="sm" variant={graphicsMode === 'trucks' ? 'default' : 'outline'} aria-pressed={graphicsMode === 'trucks'} onClick={() => setGraphicsMode('trucks')}><TruckIcon className="mr-2 size-4" />Caminhões — Logística</Button>
+        </div>
+        {graphicsMode === 'trucks' ? <TruckLogisticsDashboard key={rawCana} imported={truckImport} processing={truckProcessing} error={truckError || (resCana?.rows.length && !truckImport ? 'Base de canavieiros carregada no formato anterior. Para os indicadores logísticos, use a exportação com os campos Estado, Estado Operacional e Grupo Operacao.' : undefined)} /> : rows.length === 0 ? (
           <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
             Importe as bases para visualizar os gráficos.
           </CardContent></Card>

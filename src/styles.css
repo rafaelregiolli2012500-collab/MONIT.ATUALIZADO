@@ -77,6 +77,13 @@
 
 
 :root {
+  --truck-stop: hsl(25 95% 56%);
+  --truck-move: hsl(var(--info));
+  --truck-productive: hsl(var(--success));
+  --truck-idle: hsl(var(--warning));
+  --truck-maintenance: hsl(var(--danger));
+  --truck-unknown: hsl(var(--muted-foreground));
+  --truck-gap: hsl(270 28% 65%);
   --ldt-production: #16a34a;
   --ldt-stop: #dc2626;
   --ldt-stop-harvester: var(--ldt-stop);
