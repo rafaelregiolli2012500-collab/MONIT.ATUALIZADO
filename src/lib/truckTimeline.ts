@@ -108,12 +108,12 @@ function windows(start: number, end: number, shift: string): [number, number][] 
 const match = (p: TruckPoint, f: TruckFilters) => (!f.fleet || p.equipamento === f.fleet) && (!f.operation || p.operacao === f.operation) && (!f.state || p.estado === f.state) && (!f.operationalState || p.estadoOp === f.operationalState) && (!f.group || p.grupoOperacao === f.group) && (!f.motor || String(p.motorLigado) === f.motor);
 export const truckPercent = (a: number, b: number) => b > 0 ? a * 100 / b : 0;
 export interface TruckStats {
-  name: string; records: number; stopRecords: number; stop: number; move: number; gap: number; other: number;
+  name: string; records: number; stopRecords: number; stopOccurrences: number; stop: number; move: number; gap: number; other: number;
   produtiva: number; improdutivo: number; manutencao: number; naoClassificado: number;
   motorOn: number; motorOff: number; motorUnknown: number; distance: number; distancePairs: number;
-  zero: number; speedSum: number; speedCount: number; maxSpeed: number | null; fleets: Set<string>; groups: Set<string>;
+  zero: number; speedKnownMove: number; speedSum: number; speedCount: number; maxSpeed: number | null; fleets: Set<string>; groups: Set<string>;
 }
-const stats = (name: string): TruckStats => ({ name, records: 0, stopRecords: 0, stop: 0, move: 0, gap: 0, other: 0, produtiva: 0, improdutivo: 0, manutencao: 0, naoClassificado: 0, motorOn: 0, motorOff: 0, motorUnknown: 0, distance: 0, distancePairs: 0, zero: 0, speedSum: 0, speedCount: 0, maxSpeed: null, fleets: new Set(), groups: new Set() });
+const stats = (name: string): TruckStats => ({ name, records: 0, stopRecords: 0, stopOccurrences: 0, stop: 0, move: 0, gap: 0, other: 0, produtiva: 0, improdutivo: 0, manutencao: 0, naoClassificado: 0, motorOn: 0, motorOff: 0, motorUnknown: 0, distance: 0, distancePairs: 0, zero: 0, speedKnownMove: 0, speedSum: 0, speedCount: 0, maxSpeed: null, fleets: new Set(), groups: new Set() });
 export function analyzeTrucks(base: ReturnType<typeof prepareTruckBase>, f: TruckFilters) {
   const total = stats('Total'), fleets = new Map<string, TruckStats>(), operations = new Map<string, TruckStats>();
   const cargo = [stats('Transporte vazio'), stats('Transporte carregado')];
@@ -140,6 +140,7 @@ export function analyzeTrucks(base: ReturnType<typeof prepareTruckBase>, f: Truc
     if (Number.isFinite(p.velocidade)) { validSpeeds++; const bin = histogram.find(b => p.velocidade <= b.upper); if (bin) { bin.records++; bin[stop ? 'parada' : move ? 'deslocamento' : 'outros']++; } }
   }
   let badOdometer = 0, gapIntervals = 0, motorChanges = 0;
+  const lastStops = new Map<string, { end: number; operation: string; operationalState: string }>();
   for (const pair of base.pairs) {
     if (!match(pair.point, f)) continue;
     const a = Math.max(pair.start, f.start), b = Math.min(pair.end, f.end);
@@ -155,13 +156,19 @@ export function analyzeTrucks(base: ReturnType<typeof prepareTruckBase>, f: Truc
     if (!gap && state === 'PARADA' && p.motorLigado !== pair.next.motorLigado) motorChanges++;
     for (const [s, e] of clipped) {
       const hours = (e - s) / 3600000;
+      const last = lastStops.get(p.equipamento);
+      const newStop = !gap && state === 'PARADA' && (!last || last.end !== s || last.operation !== p.operacao || last.operationalState !== p.estadoOp);
+      if (!gap && state === 'PARADA') lastStops.set(p.equipamento, { end: e, operation: p.operacao, operationalState: p.estadoOp });
+      else lastStops.delete(p.equipamento);
       for (const v of targets(p)) {
         v.fleets.add(p.equipamento);
         if (gap) { v.gap += hours; continue; }
         v[state === 'PARADA' ? 'stop' : state === 'DESLOCAMENTO' ? 'move' : 'other'] += hours;
         v[category] += hours;
+        if (newStop) v.stopOccurrences++;
         if (state === 'PARADA') v[p.motorLigado === 1 ? 'motorOn' : p.motorLigado === 0 ? 'motorOff' : 'motorUnknown'] += hours;
         if (state === 'DESLOCAMENTO' && p.velocidade === 0) v.zero += hours;
+        if (state === 'DESLOCAMENTO' && Number.isFinite(p.velocidade)) v.speedKnownMove += hours;
         if (distanceValid && odo !== null) { v.distance += odo * (e - s) / (pair.end - pair.start); v.distancePairs++; }
       }
       let cursor = s;
@@ -173,9 +180,15 @@ export function analyzeTrucks(base: ReturnType<typeof prepareTruckBase>, f: Truc
     }
   }
   for (const bin of histogram) bin.pct = truckPercent(bin.records, validSpeeds);
-  const hours = [...hourly.values()].sort((a, b) => a.time - b.time);
+  const pointHours = new Set(filtered.map(p => { const d = new Date(p.dt); d.setMinutes(0, 0, 0); return d.getTime(); }));
+  const hours = [...hourly.values()].sort((a, b) => a.time - b.time).map(h => {
+    const hasPoints = pointHours.has(h.time);
+    return { ...h, paradaRecords: hasPoints ? h.paradaRecords : null, deslocamentoRecords: hasPoints ? h.deslocamentoRecords : null,
+      paradaHours: h.paradaHours + h.deslocamentoHours === 0 && !hasPoints ? null : h.paradaHours,
+      deslocamentoHours: h.paradaHours + h.deslocamentoHours === 0 && !hasPoints ? null : h.deslocamentoHours };
+  });
   // Preserve missing hours as null rather than inventing zeros; cap only visual buckets, never analyzed observations.
   const hourlySeries: Array<(typeof hours)[number] | { time: number; paradaRecords: null; deslocamentoRecords: null; paradaHours: null; deslocamentoHours: null; gapHours: null }> = [];
   for (let i = 0; i < hours.length; i++) { if (i && hours[i].time - hours[i - 1].time > 3600000) hourlySeries.push({ time: hours[i - 1].time + 3600000, paradaRecords: null, deslocamentoRecords: null, paradaHours: null, deslocamentoHours: null, gapHours: null }); hourlySeries.push(hours[i]); }
-  return { total, fleets: [...fleets.values()], operations: [...operations.values()], cargo, hourly: hourlySeries, histogram, filtered, stopRecords, moveRecords, gapIntervals, badOdometer, motorChanges, first: filtered[0]?.dt, last: filtered.at(-1)?.dt };
+  return { total, fleetCount: new Set(filtered.map(p => p.equipamento)).size, fleets: [...fleets.values()], operations: [...operations.values()], cargo, hourly: hourlySeries, histogram, filtered, stopRecords, moveRecords, gapIntervals, badOdometer, motorChanges, first: filtered[0]?.dt, last: filtered.at(-1)?.dt };
 }
