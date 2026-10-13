@@ -180,8 +180,9 @@ export function analyzeTrucks(base: ReturnType<typeof prepareTruckBase>, f: Truc
     }
   }
   for (const bin of histogram) bin.pct = truckPercent(bin.records, validSpeeds);
+  const pointHours = new Set(filtered.map(p => { const d = new Date(p.dt); d.setMinutes(0, 0, 0); return d.getTime(); }));
   const hours = [...hourly.values()].sort((a, b) => a.time - b.time).map(h => {
-    const hasPoints = h.paradaRecords + h.deslocamentoRecords > 0 || filtered.some(p => p.dt.getTime() >= h.time && p.dt.getTime() < h.time + 3600000);
+    const hasPoints = pointHours.has(h.time);
     return { ...h, paradaRecords: hasPoints ? h.paradaRecords : null, deslocamentoRecords: hasPoints ? h.deslocamentoRecords : null,
       paradaHours: h.paradaHours + h.deslocamentoHours === 0 && !hasPoints ? null : h.paradaHours,
       deslocamentoHours: h.paradaHours + h.deslocamentoHours === 0 && !hasPoints ? null : h.deslocamentoHours };
